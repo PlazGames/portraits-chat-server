@@ -53,42 +53,65 @@ function broadcastUserList() {
 }
 
 async function getMessageHistory() {
-    const result = await pool.query(`
-        SELECT
-            username,
-            text,
-            EXTRACT(EPOCH FROM time) * 1000 AS time
-        FROM messages
-        ORDER BY time DESC
-        LIMIT 200
-    `);
+    try {
+        const result = await pool.query(`
+            SELECT
+                username,
+                text,
+                EXTRACT(EPOCH FROM time) * 1000 AS time
+            FROM messages
+            ORDER BY time DESC
+            LIMIT 200
+        `);
 
-    return result.rows.reverse().map(message => ({
-        username: message.username,
-        text: message.text,
-        time: Number(message.time)
-    }));
+        return result.rows.reverse().map(message => ({
+            username: message.username,
+            text: message.text,
+            time: Number(message.time)
+        }));
+    } catch (error) {
+        console.error("DATABASE HISTORY ERROR:");
+        console.error(error);
+
+        throw error;
+    }
 }
 
 async function saveMessage(message) {
-    const result = await pool.query(
-        `
-        INSERT INTO messages (username, text)
-        VALUES ($1, $2)
-        RETURNING
-            username,
-            text,
-            EXTRACT(EPOCH FROM time) * 1000 AS time
-        `,
-        [message.username, message.text]
-    );
+    try {
+        const result = await pool.query(
+            `
+            INSERT INTO messages (username, text)
+            VALUES ($1, $2)
+            RETURNING
+                username,
+                text,
+                EXTRACT(EPOCH FROM time) * 1000 AS time
+            `,
+            [message.username, message.text]
+        );
 
-    return {
-        username: result.rows[0].username,
-        text: result.rows[0].text,
-        time: Number(result.rows[0].time)
-    };
+        return {
+            username: result.rows[0].username,
+            text: result.rows[0].text,
+            time: Number(result.rows[0].time)
+        };
+    } catch (error) {
+        console.error("DATABASE SAVE ERROR:");
+        console.error(error);
+
+        throw error;
+    }
 }
+
+pool.query("SELECT NOW()")
+    .then(() => {
+        console.log("Database connection successful");
+    })
+    .catch(error => {
+        console.error("DATABASE CONNECTION ERROR:");
+        console.error(error);
+    });
 
 server.on("connection", socket => {
     let currentUsername = null;
